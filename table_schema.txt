@@ -1,0 +1,58 @@
+-- 1. Create the categories table
+CREATE TABLE IF NOT EXISTS public.categories (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL
+);
+
+-- 2. Create the files table
+CREATE TABLE IF NOT EXISTS public.files (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    upload_date TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    category_id INTEGER REFERENCES public.categories(id) ON DELETE CASCADE
+);
+
+-- 3. Create the lead_rows table (used for processing before campaigns)
+CREATE TABLE IF NOT EXISTS public.lead_rows (
+    id SERIAL PRIMARY KEY,
+    file_id INTEGER REFERENCES public.files(id) ON DELETE CASCADE,
+    row_data JSONB,
+    lead_score INTEGER DEFAULT 0,
+    status TEXT,
+    next_scheduled_action TIMESTAMP WITH TIME ZONE,
+    message_id TEXT,
+    thread_id TEXT
+);
+
+-- 4. Create the campaigns table
+CREATE TABLE IF NOT EXISTS public.campaigns (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    target_files TEXT,
+    status TEXT DEFAULT 'RUNNING',
+    total_leads INTEGER DEFAULT 0,
+    sent INTEGER DEFAULT 0,
+    opens INTEGER DEFAULT 0,
+    replies INTEGER DEFAULT 0,
+    start_date TEXT,
+    timezone TEXT DEFAULT 'UTC',
+    daily_limit INTEGER DEFAULT 50,
+    templates JSONB,
+    delays JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 5. Create the newly requested leads table (for the drip-feed bulk insert)
+CREATE TABLE IF NOT EXISTS public.leads (
+    id SERIAL PRIMARY KEY,
+    campaign_id INTEGER REFERENCES public.campaigns(id) ON DELETE CASCADE,
+    email TEXT,
+    personalization_data JSONB,
+    status TEXT DEFAULT 'pending',
+    next_scheduled_action TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- Note: Ensure permissions are correct if your front-end interacts directly 
+-- with these tables in the future. As long as your backend uses the 
+-- Service Role Key (already implemented), Row Level Security (RLS) is bypassed.
